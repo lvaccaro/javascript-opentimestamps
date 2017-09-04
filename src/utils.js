@@ -84,12 +84,27 @@ exports.bytesToCharts = function (buffer) {
   return charts;
 };
 
+exports.toBytes = function (str, encode) {
+  return str.toString('binary', encode);
+};
+
 exports.arrayToBytes = function (buffer) {
   const bytes = [];
   for (let c = 0; c < buffer.length; c++) {
     bytes.push(parseInt(buffer[c], 10));
   }
   return bytes;
+};
+
+exports.arrCompare = function (left, right) {
+  for (let i = 0, j = 0; i < left.length && j < right.length; i++, j++) {
+    const a = (left[i] & 0xff);
+    const b = (right[j] & 0xff);
+    if (a !== b) {
+      return a - b;
+    }
+  }
+  return left.length - right.length;
 };
 
 exports.arrEq = function (arr1, arr2) {

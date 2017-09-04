@@ -1,4 +1,3 @@
-
 const test = require('tape');
 const rp = require('request-promise');
 const Utils = require('../src/utils.js');

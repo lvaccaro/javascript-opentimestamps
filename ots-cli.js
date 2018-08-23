@@ -314,8 +314,21 @@ function verify (argsFileOts, options) {
     verifyPromise.then(results => {
       if (results) {
         Object.keys(results).map(chain => {
-          var date = moment(results[chain].timestamp * 1000).tz(moment.tz.guess()).format('YYYY-MM-DD z')
-          console.log('Success! ' + chain[0].toUpperCase() + chain.slice(1) + ' block ' + results[chain].height + ' attests existence as of ' + date)
+          var date = moment(results[chain].timestamp * 1000).tz(moment.tz.guess()).format('YYYY-MM-DD hh:mm:ss z')
+          const height = results[chain].height
+          const infoLines = OpenTimestamps.info(detachedOts, options).split('\n')
+          const query = 'verify BitcoinBlockHeaderAttestation(' + height + ')'
+          var txid = false
+          for (var i = 0; i < infoLines.length && !txid; i++) {
+            if (infoLines[i].includes(query)) {
+              for (var j = i; j >= 0 && !txid; --j) {
+                if (infoLines[j].includes('# transaction id ')) {
+                  txid = infoLines[j].slice(infoLines[j].indexOf('# transaction id ') + '# transaction id '.length)
+                }
+              }
+            }
+          }
+          console.log('Success! ' + chain[0].toUpperCase() + chain.slice(1) + ' [block ' + height + ' : transaction id ' + txid + ' ] attests existence as of ' + date)
         })
       }
     }).catch(err => {

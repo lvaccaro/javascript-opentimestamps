@@ -119,10 +119,83 @@ class Insight {
   }
 }
 
+/** Class used to query Blockstream.info API */
+class Blockstream {
+  constructor (url, timeout) {
+    this.urlBlockindex = url + '/block-height'
+    this.urlBlock = url + '/block'
+    this.timeout = timeout * 1000
+  }
+
+  blockhash (height) {
+    const options = {
+      url: this.urlBlockindex + '/' + height,
+      method: 'GET',
+      headers: {
+        Accept: 'plain/text',
+        'User-Agent': 'javascript-opentimestamps',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      json: false,
+      timeout: this.timeout,
+      gzip: true
+    }
+    return new Promise((resolve, reject) => {
+      requestPromise(options)
+        .then(body => {
+          // console.log('body ', body);
+          if (body.size === 0) {
+            const error = new Error('Insight response error body ')
+            console.error(error.message)
+            return reject(error)
+          }
+          resolve(body)
+        })
+        .catch(err => {
+          const error = new Error('Insight response error: ' + err.toString().substr(0, 100))
+          console.error(error.message)
+          reject(error)
+        })
+    })
+  }
+
+  block (hash) {
+    const options = {
+      url: this.urlBlock + '/' + hash,
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'javascript-opentimestamps',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      json: true,
+      timeout: this.timeout,
+      gzip: true
+    }
+    return new Promise((resolve, reject) => {
+      requestPromise(options)
+        .then(body => {
+          if (!body || body.size === 0 || body.id !== hash || !body.merkle_root || !body.timestamp) {
+            const error = new Error('Insight response error body ')
+            console.error(error.message)
+            return reject(error)
+          }
+          resolve({merkleroot: body.merkle_root, time: body.timestamp})
+        })
+        .catch(err => {
+          const error = new Error('Insight response error: ' + err.toString().substr(0, 100))
+          console.error(error.message)
+          reject(error)
+        })
+    })
+  }
+}
+
 const publicInsightUrls = {}
 publicInsightUrls.bitcoin = [
 //  'https://www.localbitcoinschain.com/api',  // gives 502 - "lots of HTML code"
 //  'https://search.bitaccess.co/insight-api',   // gives 400 - "Block height out of range. Code:-8"
+  'https://blockstream.info/api',
   'https://insight.bitpay.com/api',
   'https://btc-bitcore1.trezor.io/api',
   'https://btc-bitcore4.trezor.io/api',
@@ -154,7 +227,12 @@ class MultiInsight {
     const urls = urlsOptionSet ? options.urls : publicInsightUrls[chain]
 
     urls.forEach(url => {
-      this.insights.push(new Insight(url, timeout))
+      const insight = new Insight(url, timeout)
+      if (url.indexOf('blockstream') !== -1) {
+        this.insights.push(new Blockstream(url, timeout))
+      } else {
+        this.insights.push(new Insight(url, timeout))
+      }
     })
   }
 
@@ -165,7 +243,7 @@ class MultiInsight {
     })
     return new Promise((resolve, reject) => {
       Promise.all(res.map(Utils.softFail)).then(results => {
-        // console.log('results=' + results);
+        console.log('results=' + results)
         const set = new Set()
         results.filter(result => { if (result && !(result instanceof Error)) { set.add(JSON.stringify(result)) } })
         if (set.size === 0) {
